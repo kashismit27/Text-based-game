@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Type Your Way Out</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      background-color: #0b0b0b;
+      color: #00ffaa;
+      overflow-x: hidden;
+    }
+
+    #introScreen, #gameUI {
+      max-width: 800px;
+      margin: auto;
+      padding: 2rem;
+      display: none;
+    }
+
+    #introScreen {
+      background: linear-gradient(-45deg, #0b0b0b, #1a1a2e, #16213e, #0f3460);
+      background-size: 400% 400%;
+      animation: gradientFlow 15s ease infinite;
+      color: #00ffaa;
+    }
+
+    @keyframes gradientFlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    h1 {
+      text-align: center;
+      color: #00e6e6;
+    }
+
+    .highlight { color: #ffcc00; }
+    .note { font-style: italic; color: #cccccc; }
+    em { color: #ff99cc; font-size: 1.1em; }
+
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background-color: #00ffaa;
+      color: #111;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #00ccaa;
+    }
+
+    #gameGrid {
+      margin-top: 20px;
+      white-space: pre;
+      background: #111;
+      padding: 10px;
+      border-radius: 8px;
+      color: #0ff;
+      font-size: 1.2rem;
+      display: none;
+    }
+
+    input[type="text"] {
+      width: 60%;
+      padding: 10px;
+      font-size: 1rem;
+      border-radius: 5px;
+      border: none;
+      margin-top: 10px;
+    }
+
+    #info p {
+      margin: 8px 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="introScreen">
+    <h1>🧠 Echoes of the Maze</h1>
+    <p><span class="highlight">"Time changes where truth is weak."</span></p>
+    <p>To escape the maze of thoughts, the <span class="highlight">@</span> must walk across the grid. Walls (#) cannot be passed, but whispers sometimes help.</p>
+    <p>Coins (<span class="highlight">$</span>) are memories. If you lose too many, the gate won’t open.</p>
+    <p>The guardians:</p>
+    <ul>
+      <li><span class="highlight">F</span>: The final guard. You must carry something and care for something to pass.</li>
+      <li><span class="highlight">X</span>: Brave minds enter. Wise minds may avoid it.</li>
+    </ul>
+    <p>Strange fruits grow inside:</p>
+    <ul>
+      <li><span class="highlight">A</span>: The red truth.</li>
+      <li><span class="highlight">B</span>: The yellow joke.</li>
+      <li><span class="highlight">M</span>: The golden dream.</li>
+    </ul>
+    <p>Use simple commands:<br><span class="highlight">move up</span>, <span class="highlight">move down</span>, <span class="highlight">move left</span>, <span class="highlight">move right</span>.</p>
+    <p class="note">⏳ Time whispers. It doesn’t wait. It can break, bend, or disappear—based on your steps.</p>
+    <p><em>“Only the echo answers in the end.”</em></p>
+    <div style="text-align: center;">
+      <button onclick="startGame()">▶️ Start Game</button>
+    </div>
+  </div>
+
+  <div id="gameUI">
+    <h1>Type Your Way Out</h1>
+    <div id="info">
+      <p>Score: <span id="score">0</span></p>
+      <p>🕒 Real Time: <span id="realClock">--:--:--</span></p>
+      <p>⏳ Game Time: <span id="gameClock">--:--:--</span></p>
+      <p>🧺 Collected Items: <span id="collectedItems">None</span></p>
+      <p id="status"></p>
+    </div>
+
+    <div id="gameGrid">Game grid loading...</div>
+
+    <div id="command">
+      <input type="text" id="input" placeholder="Enter command (e.g., move up)" />
+      <button onclick="handleCommand()">Submit</button>
+    </div>
+
+    <div style="margin-top: 20px;">
+      <button onclick="saveGameData()">💾 Save Game</button>
+      <button onclick="loadGameData()">📂 Load Game</button>
+    </div>
+  </div>
+
+  <script>
+    // Show intro screen initially
+    document.getElementById('introScreen').style.display = 'block';
+
+    function startGame() {
+      document.getElementById('introScreen').style.display = 'none';
+      document.getElementById('gameUI').style.display = 'block';
+      if (typeof resetGame === 'function') resetGame();
+      if (typeof startClocks === 'function') startClocks();
+    }
+     // Initial grid setup (added 'R' at [2][4])
+const initialGrid = [
+  ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#'],
+  ['#', 'T', ' ', '$', ' ', ' ', ' ', ' ', 'X', ' ', 'F', 'M', '#'],
+  ['#', 'M', '#', ' ', 'R', 'L', '#', ' ', ' ', 'A', '#', '$', '#'],
+  ['#', ' ', ' ', '@', ' ', '#', ' ', '$', ' ', ' ', ' ', ' ', '#'],
+  ['#', '$', '#', 'B', '#', ' ', '#', ' ', ' ', '#', 'S', ' ', '#'],
+  ['#', ' ', ' ', ' ', ' ', '$', ' ', 'M', '#', ' ', ' ', 'T', '#'],
+  ['#', '#', '#', ' ', '#', ' ', ' ', '#', ' ', '#', '#', ' ', '#'],
+  ['#', 'A', ' ', ' ', ' ', ' ', 'A', ' ', 'B', ' ', 'R', ' ', '#'],
+  ['#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#', '#']
+];
+
+
+    let grid;
+    let score;
+    let timeMultiplier;
+    let collectedItems;
+    let coinLog;
+    let itemLog;
+    let isReversing;
+    let reverseTimeLeft;
+    let gameStart;
+    let gameElapsed;
+    let lastRealUpdate;
+    let player;
+
+    function deepCopyGrid(g) {
+      return g.map(row => row.slice());
+    }
+
+    function resetGame() {
+      grid = deepCopyGrid(initialGrid);
+      score = 0;
+      timeMultiplier = 1;
+      collectedItems = [];
+      coinLog = [];
+      itemLog = [];
+      isReversing = false;
+      reverseTimeLeft = 0;
+      gameStart = new Date();
+      gameElapsed = 0;
+      lastRealUpdate = Date.now();
+      player = findPlayer();
+      updateScore();
+      updateCollectedItems();
+      document.getElementById('status').textContent = "";
+      renderGrid();
+    }
+
+    function findPlayer() {
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < grid[y].length; x++) {
+          if (grid[y][x] === '@') return { x, y };
+        }
+      }
+    }
+
+    function renderGrid() {
+      let display = '';
+      for (let row of grid) {
+        display += row.join(' ') + '\n';
+      }
+      document.getElementById('gameGrid').textContent = display;
+    }
+
+    function startClocks() {
+      setInterval(() => {
+        const realNow = new Date();
+        document.getElementById('realClock').textContent = realNow.toLocaleTimeString();
+
+        const currentTime = Date.now();
+        const minutesPassed = (currentTime - lastRealUpdate) / (1000 * 60);
+        lastRealUpdate = currentTime;
+
+        if (!isReversing) {
+          gameElapsed += minutesPassed * timeMultiplier;
+        } else {
+          gameElapsed -= minutesPassed;
+          reverseTimeLeft -= minutesPassed * 60;
+
+          if (reverseTimeLeft <= 0) {
+            isReversing = false;
+            document.getElementById('status').textContent = "✅ Reverse complete!";
+            // Re-sync gameElapsed with real time (adjusted by timeMultiplier)
+            const realNow = Date.now();
+            const realMinutesPassed = (realNow - gameStart.getTime()) / (1000 * 60);
+            gameElapsed = realMinutesPassed * timeMultiplier;
+          } else {
+            const cutoff = gameStart.getTime() + gameElapsed * 60 * 1000;
+            // Remove coins collected after cutoff
+            coinLog = coinLog.filter(t => t < cutoff);
+            score = coinLog.length;
+            updateScore();
+            // Remove items collected after cutoff
+            itemLog = itemLog.filter(obj => obj.time < cutoff);
+            collectedItems = itemLog.map(obj => obj.item);
+            updateCollectedItems();
+          }
+        }
+
+        const gameNow = new Date(gameStart.getTime() + gameElapsed * 60 * 1000);
+        document.getElementById('gameClock').textContent = gameNow.toLocaleTimeString();
+      }, 1000);
+    }
+
+    function movePlayer(newX, newY, commandText) {
+      if (!grid[newY] || !grid[newY][newX] || grid[newY][newX] === '#') {
+        alert(`🚫 Cannot execute "${commandText}" – there's a wall or edge.` );
+        return;
+      }
+
+      const cell = grid[newY][newX];
+
+      // Finish cell logic
+      if (cell === 'F') {
+        // Check requirements
+        let hasApple = collectedItems.includes('Apple');
+        let hasBanana = collectedItems.includes('Banana');
+        let hasCoins = score >= 2;
+
+        // NPC dialog
+        if (hasCoins && hasApple && hasBanana) {
+          const give = confirm(
+            "🧙‍♂ A wise old NPC blocks your way:\n\n" +
+            "'To pass, you must offer me 2 coins, an Apple, and a Banana.'\n\n" +
+            "Do you give the items and coins to the NPC?"
+          );
+          if (give) {
+            // Remove 2 coins, Apple, and Banana
+            score -= 2;
+            // Remove Apple and Banana from collectedItems/itemLog
+            let appleRemoved = false, bananaRemoved = false;
+            itemLog = itemLog.filter(obj => {
+              if (obj.item === 'Apple' && !appleRemoved) { appleRemoved = true; return false; }
+              if (obj.item === 'Banana' && !bananaRemoved) { bananaRemoved = true; return false; }
+              return true;
+            });
+            collectedItems = itemLog.map(obj => obj.item);
+            updateScore();
+            updateCollectedItems();
+            // Now present the puzzle
+            const answer = prompt(
+              "A portal appears and a voice asks:\n" +
+              "'I speak without a mouth and hear without ears. I have no body, but I come alive with wind. What am I?'\n\n" +
+              "Type your answer:"
+            );
+            if (answer && answer.trim().toLowerCase() === "echo") {
+              alert("🎉 Congratulations! You solved the puzzle and escaped the maze!\n\nThanks for playing!");
+              resetGame();
+              document.getElementById('status').textContent = "🏆 You finished the game! Play again?";
+              renderGrid();
+              return;
+            } else {
+              alert("❌ That is not correct! The portal rejects you. Try again.");
+              grid[player.y][player.x] = '@'; // Keep player in place
+              renderGrid();
+              return;
+            }
+          } else {
+            alert("🧙‍♂ 'Come back when you are ready to make the offering.'");
+            grid[player.y][player.x] = '@'; // Keep player in place
+            renderGrid();
+            return;
+          }
+        } else {
+          // Tell the player what is missing
+          let missing = [];
+          if (!hasCoins) missing.push("2 coins");
+          if (!hasApple) missing.push("an Apple");
+          if (!hasBanana) missing.push("a Banana");
+          alert("Ramanji says:\n\n" +
+                "'You cannot pass. You are missing: " + missing.join(", ") + ".'");
+          grid[player.y][player.x] = '@'; // Keep player in place
+          renderGrid();
+          return;
+        }
+      }
+
+      // Custom handling for death cell (X)
+      if (cell === 'X') {
+        // Spooky NPC greeting
+        const enter = confirm(
+          "💀 A cloaked figure blocks your path...\n\n" +
+          "'So, mortal, you have found the Gate of Death.'\n" +
+          "'Beyond this lies only darkness. Do you wish to cross?'\n\n" +
+          "(Press OK to enter, Cancel to step back.)"
+        );
+        if (enter) {
+          alert("☠ You are caught by Death! The world fades to black...");
+          resetGame();
+          document.getElementById('status').textContent = "🕳 You have been reborn at the start.";
+          renderGrid();
+          return;
+        } else {
+          alert("😱 The figure grins as you retreat...");
+          grid[player.y][player.x] = '@'; // Keep player in place
+          renderGrid();
+          return;
+        }
+      }
+
+      // Reverse time cell
+      if (cell === 'R') {
+        alert("⏪ You triggered a Reverse Time zone! Rewinding game time...");
+        isReversing = true;
+        reverseTimeLeft = 120; // 2 minutes (120 seconds) of reverse
+        document.getElementById('status').textContent = "⏪ Reversing time...";
+      }
+
+      // For all other interactable cells except X, F, and R
+      if (['$', 'T', 'S', 'L'].includes(cell)) {
+        // 'L' gets special handling below, so skip prompt here for 'L'
+        if (cell !== 'L') {
+          let take = confirm(`Do you want to interact with '${cell}'?`);
+          if (!take) {
+            alert("❌ Action canceled. Try another move.");
+            grid[player.y][player.x] = '@'; // Keep player in place
+            renderGrid();
+            return;
+          }
+        }
+      }
+
+      grid[player.y][player.x] = ' ';
+
+      // Process cell content
+      if (cell === '$') {
+        score += 1;
+        coinLog.push(Date.now());
+        alert(`you have collected the coin`);
+      } else if (cell === 'T') {
+        timeMultiplier = 0.5;
+        document.getElementById('status').textContent = "🐢 Time slowed!";
+      } else if (cell === 'S') {
+        timeMultiplier = 2;
+        document.getElementById('status').textContent = "⚡ Time sped up!";
+      } else if (cell === 'L') {
+        alert("⏳ You are caught in a time loop! All your coins and items are lost. Returning to start...");
+        score = 0;
+        collectedItems = [];
+        coinLog = [];
+        itemLog = [];
+        updateScore();
+        updateCollectedItems();
+        grid[newY][newX] = 'L'; // Keep the time loop cell
+        player = { x: 3, y: 3 }; // Reset to original start position
+        grid[player.y][player.x] = '@';
+   
+        renderGrid();
+        return;
+      } else if (cell === 'M') {
+        const take = confirm("🥭 Do you want to pick up Mango?");
+        if (!take) {
+          alert("❌ Action canceled.");
+          grid[player.y][player.x] = '@'; // Keep player in place
+          renderGrid();
+          return;
+        }
+        collectedItems.push('Mango');
+        itemLog.push({ item: 'Mango', time: Date.now() });
+        updateCollectedItems();
+      } else if (cell === 'A') {
+        const take = confirm("🍎 Do you want to pick up Apple?");
+        if (!take) {
+          alert("❌ Action canceled.");
+          grid[player.y][player.x] = '@'; // Keep player in place
+          renderGrid();
+          return;
+        }
+        collectedItems.push('Apple');
+        itemLog.push({ item: 'Apple', time: Date.now() });
+        updateCollectedItems();
+      } else if (cell === 'B') {
+        const take = confirm("🍌 Do you want to pick up Banana?");
+        if (!take) {
+          alert("❌ Action canceled.");
+          grid[player.y][player.x] = '@'; // Keep player in place
+          renderGrid();
+          return;
+        }
+        collectedItems.push('Banana');
+        itemLog.push({ item: 'Banana', time: Date.now() });
+        updateCollectedItems();
+      }
+
+      player = { x: newX, y: newY };
+      grid[newY][newX] = '@';
+      updateScore();
+      renderGrid();
+    }
+
+    function updateScore() {
+      document.getElementById('score').textContent = score;
+    }
+
+    function updateCollectedItems() {
+      const display = collectedItems.length > 0 ? collectedItems.join(', ') : 'None';
+      document.getElementById('collectedItems').textContent = display;
+    }
+
+    function handleCommand() {
+      const input = document.getElementById('input').value.trim().toLowerCase();
+      const commandText = input;
+
+      let newX = player.x;
+      let newY = player.y;
+
+      if (input.includes('up')) newY--;
+      else if (input.includes('down')) newY++;
+      else if (input.includes('left')) newX--;
+      else if (input.includes('right')) newX++;
+      else {
+        alert(`❌ Invalid command: "${input}"`);
+        document.getElementById('input').value = '';
+        return;
+      }
+
+      movePlayer(newX, newY, commandText);
+      document.getElementById('input').value = '';
+    }
+
+    // Start game
+    resetGame();
+    startClocks();
+    // Allow Enter key to submit command
+document.getElementById('input').addEventListener('keydown', function(event) {
+  if (event.key === 'Enter') {
+    handleCommand();
+  }
+});
+
+    async function saveGameData() {
+    const username = prompt("Enter your name to save the game:");
+    if (!username) return alert("❌ Name is required to save the game!");
+
+    const timeSpent = Math.floor((Date.now() - gameStart.getTime()) / 1000); // in seconds
+
+    const payload = {
+      name: username,
+      state: {
+        score,
+        collectedItems,
+        gameElapsed: timeSpent
+      }
+    };
+
+    try {
+      const res = await fetch('http://localhost:5000/api/player/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await res.json();
+      alert(result.message || "✅ Game saved!");
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+      alert("❌ Failed to save game.");
+    }
+  }
+
+  async function loadGameData() {
+    const username = prompt("Enter your name to load the game:");
+    if (!username) return alert("❌ Name is required to load the game!");
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/player/load/${username}`);
+      const result = await res.json();
+
+      if (!result || !result.player) {
+        return alert("⚠ No saved game found for this user.");
+      }
+
+      const playerData = result.player;
+
+      score = playerData.score || 0;
+      collectedItems = playerData.collectedItems || [];
+      gameElapsed = (playerData.gameElapsed || 0) / 60;
+      gameStart = new Date(Date.now() - (playerData.gameElapsed || 0) * 1000);
+
+      updateScore();
+      updateCollectedItems();
+      renderGrid();
+      document.getElementById('status').textContent = "✅ Game loaded!";
+    } catch (err) {
+      console.error("❌ Load failed:", err);
+      alert("❌ Failed to load game.");
+    }
+  }
+  </script>
+  <!-- Your existing game JS logic should be included below this line -->
+</body>
+</html>
