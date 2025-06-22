@@ -1,1 +1,2 @@
 # Text-based-game
+In this game a player travels through a old science lab which has time anomalies, he need to collect few items in order to complete the game and escape from the maze .This is a complete text based game without visual appearance of the maze or the player,one needs to analyze the route they have been through escaping the time traps set and reach the final cell or be trapped in it forever 
